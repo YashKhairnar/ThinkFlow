@@ -74,14 +74,37 @@ The application will be available at `http://localhost:3000`.
 
 The system employs a sophisticated two-stage architecture to translate raw EEG signals into natural language:
 
-1.  **EEG Encoder (VQ-VAE)**:
-    *   **Convolutional Layers**: A series of 1D convolutional layers extract local temporal features from the raw EEG data (105 channels).
-    *   **Multi-Head Attention**: A custom Transformer-based attention mechanism captures long-range dependencies across the time series. This allows the model to focus on relevant parts of the EEG signal regardless of their temporal distance.
-    *   **Vector Quantization (VQ)**: The continuous feature vectors are mapped to a discrete codebook (codex), effectively tokenizing the brain activity into a sequence of discrete units.
+### 1. EEG Encoder (VQ-VAE)
 
-2.  **Text Generation (BART)**:
-    *   **Pre-trained Transformer**: We utilize **BART (Bidirectional and Auto-Regressive Transformers)**, a powerful sequence-to-sequence model pre-trained by Facebook.
-    *   **Cross-Modal Translation**: The discrete EEG tokens from the encoder are projected into the BART embedding space. The BART decoder then attends to these "brain tokens" to generate coherent English sentences, leveraging its extensive knowledge of language structure.
+*   **Convolutional Layers**: A series of 1D convolutional layers extract local temporal features from the raw EEG data (105 channels → 64 → 128 → 256 → 512 channels).
+*   **Multi-Head Attention**: A custom Transformer-based attention mechanism (8 heads) captures long-range dependencies across the time series. This allows the model to focus on relevant parts of the EEG signal regardless of their temporal distance.
+*   **Vector Quantization (VQ) with Codebook**: 
+    - The continuous feature vectors are mapped to a **discrete codebook (codex)** of 2048 learned embeddings (512-dimensional each).
+    - During training, the model learns both the encoder and this codebook simultaneously using two loss terms:
+        - **Codebook Loss**: Ensures the codebook embeddings move closer to the encoder outputs.
+        - **Commitment Loss**: Encourages the encoder to commit to codebook entries.
+    - This effectively tokenizes brain activity into a sequence of 57 discrete units, creating a "brain vocabulary."
 
-- **Input**: EEG signals (105 channels, 5500 timesteps).
-- **Output**: Decoded natural language text.
+### 2. Text Generation (BART)
+
+*   **Pre-trained Transformer**: We utilize **BART (Bidirectional and Auto-Regressive Transformers)**, a powerful sequence-to-sequence model pre-trained by Facebook.
+*   **Projection Layer**: A linear layer projects the 512-dimensional EEG tokens to BART's 1024-dimensional embedding space.
+*   **Cross-Modal Translation**: The BART decoder attends to these "brain tokens" to generate coherent English sentences, leveraging its extensive knowledge of language structure.
+
+### Training Process
+
+The model is trained end-to-end with:
+- **VQ Loss**: Codebook + commitment losses for learning discrete representations
+- **Reconstruction Loss**: Ensures the generated text matches the ground truth
+- The codebook learns to capture meaningful patterns in brain activity that correspond to linguistic concepts
+
+**Model Specifications:**
+- **Input**: EEG signals (105 channels, 5500 timesteps)
+- **Encoder Output**: 57 discrete tokens (from 2048-entry codebook)
+- **Final Output**: Decoded natural language text
+
+## References
+
+If you use this work or find it helpful, please cite the original DeWave paper:
+
+> Duan, Y., Zhou, J., Wang, Z., Wang, Y.-K., & Lin, C.-T. (2024). DeWave: Discrete EEG Waves Encoding for Brain Dynamics to Text Translation. arXiv preprint arXiv:2309.14030. [https://arxiv.org/abs/2309.14030](https://arxiv.org/abs/2309.14030)
