@@ -70,9 +70,18 @@ The application will be available at `http://localhost:3000`.
 4.  (Optional) Click **View Tensor** to inspect the raw EEG data.
 5.  The system will process the EEG data and display the decoded text.
 
-## Model Details
+## Model Architecture
 
-The system uses a VQ-VAE (Vector Quantized Variational Autoencoder) to encode EEG signals into discrete latent representations, which are then passed to a BART (Bidirectional and Auto-Regressive Transformers) model for text generation.
+The system employs a sophisticated two-stage architecture to translate raw EEG signals into natural language:
+
+1.  **EEG Encoder (VQ-VAE)**:
+    *   **Convolutional Layers**: A series of 1D convolutional layers extract local temporal features from the raw EEG data (105 channels).
+    *   **Multi-Head Attention**: A custom Transformer-based attention mechanism captures long-range dependencies across the time series. This allows the model to focus on relevant parts of the EEG signal regardless of their temporal distance.
+    *   **Vector Quantization (VQ)**: The continuous feature vectors are mapped to a discrete codebook (codex), effectively tokenizing the brain activity into a sequence of discrete units.
+
+2.  **Text Generation (BART)**:
+    *   **Pre-trained Transformer**: We utilize **BART (Bidirectional and Auto-Regressive Transformers)**, a powerful sequence-to-sequence model pre-trained by Facebook.
+    *   **Cross-Modal Translation**: The discrete EEG tokens from the encoder are projected into the BART embedding space. The BART decoder then attends to these "brain tokens" to generate coherent English sentences, leveraging its extensive knowledge of language structure.
 
 - **Input**: EEG signals (105 channels, 5500 timesteps).
 - **Output**: Decoded natural language text.
