@@ -236,7 +236,7 @@ const slides = [
                 {/* Dataset Information */}
                 <div className="p-4 bg-slate-800/50 rounded-xl border border-slate-700">
                     <h3 className="text-lg font-semibold mb-3 text-emerald-400">Dataset: ZuCo 2.0</h3>
-                    <div className="grid grid-cols-3 gap-4 text-sm">
+                    <div className="grid grid-cols-4 gap-4 text-sm">
                         <div className="text-center">
                             <div className="text-2xl font-bold text-cyan-400">5,915</div>
                             <div className="text-slate-400">Total Samples</div>
@@ -246,8 +246,12 @@ const slides = [
                             <div className="text-slate-400">Training Set</div>
                         </div>
                         <div className="text-center">
-                            <div className="text-2xl font-bold text-orange-400">20%</div>
+                            <div className="text-2xl font-bold text-orange-400">10%</div>
                             <div className="text-slate-400">Validation Set</div>
+                        </div>
+                        <div className="text-center">
+                            <div className="text-2xl font-bold text-orange-400">10%</div>
+                            <div className="text-slate-400">Test Set</div>
                         </div>
                     </div>
                 </div>
