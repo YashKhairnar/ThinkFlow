@@ -9,6 +9,16 @@ import numpy as np
 import flask
 from flask import request, jsonify
 from flask_cors import CORS
+import sys
+
+
+# LSTM model imports
+sys.path.append('lstm_model')
+sys.path.append('lstm_model/src')
+from src.seq2seq_model import Seq2Seq
+from src.vocabulary import Vocabulary
+# Import vocabulary module to allow unpickling
+import vocabulary
 import os
 import time
 import random
@@ -308,6 +318,84 @@ bart_model = BartForConditionalGeneration.from_pretrained("facebook/bart-large")
 # Create a projection layer to match BART's hidden size (1024)
 projection = nn.Linear(512, 1024).to(device)
 print("Model loaded successfully!")
+
+
+
+# --- LSTM Model Initialization ---
+print("Loading LSTM model...")
+# Load LSTM checkpoint
+lstm_checkpoint = torch.load('lstm_model/checkpoints/seq2seq_medium_model.pth', map_location=device, weights_only=False)
+
+# Extract vocabulary from checkpoint
+lstm_vocab = lstm_checkpoint['vocabulary']
+vocab_size = len(lstm_vocab.word2idx)
+downsample_factor = lstm_checkpoint.get('downsample_factor', 2)
+sequence_length_downsampled = 5500 // downsample_factor
+
+print(f"Vocabulary size: {vocab_size}")
+print(f"Downsample factor: {downsample_factor}")
+
+# Initialize LSTM model
+lstm_model = Seq2Seq(
+    vocab_size=vocab_size,
+    input_channels=105,
+    sequence_length=sequence_length_downsampled,
+    embedding_dim=256,
+    encoder_hidden_size=256,
+    decoder_hidden_size=256,
+    num_layers=2,
+    dropout=0.3,
+    use_channel_reduction=True,
+    reduced_channels=32
+)
+
+# Load model weights
+lstm_model.load_state_dict(lstm_checkpoint['model_state_dict'])
+lstm_model.to(device)
+lstm_model.eval()
+print("LSTM Model loaded successfully!")
+
+
+
+@app.route('/predict_lstm', methods=['POST'])
+def predict_lstm():
+    data = request.json
+    filename = data.get('filename')
+    
+    if not filename:
+        return jsonify({'error': 'No filename provided'}), 400
+        
+    try:
+        # Load and preprocess the EEG data from file
+        eeg_data = load_and_pad_eeg(filename) # [105, 5500]
+        
+        # Downsample the EEG data
+        eeg_downsampled = eeg_data[:, ::downsample_factor]  # [105, 2750]
+        input_eeg = eeg_downsampled.unsqueeze(0)  # [1, 105, 2750]
+        
+        with torch.no_grad():
+            # Generate text using LSTM model
+            generated_indices, attention_weights = lstm_model.generate(
+                input_eeg,
+                max_len=50,
+                sos_idx=lstm_vocab.sos_idx,
+                eos_idx=lstm_vocab.eos_idx
+            )
+            
+            # Decode indices to text
+            generated_text = lstm_vocab.decode(generated_indices[0].cpu().tolist())
+            
+            # Calculate confidence (average of max probabilities - approximation)
+            confidence = 0.85  # Placeholder since we don't have direct probability output
+            
+            return {'generated_text': generated_text, 'confidence': float(confidence)}
+            
+    except Exception as e:
+        print(f"Error during LSTM prediction: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
 
 if __name__ == "__main__":
     app.run(debug=True, port=5000)

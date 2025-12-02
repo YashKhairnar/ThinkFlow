@@ -127,6 +127,98 @@ const slides = [
         ),
     },
     {
+        title: "Methodology - Seq2Seq LSTM Model",
+        content: (
+            <div className="space-y-4 pr-2">
+                <div className="text-center mb-4">
+                    <h3 className="text-xl font-bold text-orange-400">Seq2Seq LSTM Architecture</h3>
+                    <p className="text-sm text-slate-400">Bidirectional Encoder-Decoder with Attention Mechanism</p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs text-slate-300">
+                    {/* Left Column */}
+                    <div className="space-y-4">
+                        <Section title="1. Data Preprocessing">
+                            <ul className="list-disc list-inside space-y-0.5 text-slate-400 text-xs">
+                                <li>Input: Raw EEG CSV (105 channels)</li>
+                                <li><strong>Padding:</strong> Zero-pad to 5500 timestamps</li>
+                                <li><strong>Downsampling (2x):</strong> Reduces to 2750 steps</li>
+                                <li><strong>Augmentation (6x):</strong> Noise, Shift, Dropout</li>
+                            </ul>
+                        </Section>
+
+                        <Section title="2. Encoder (Bidirectional LSTM)">
+                            <div className="space-y-1 text-xs">
+                                <p><strong className="text-white">Architecture:</strong></p>
+                                <ul className="list-disc list-inside pl-2 text-slate-400">
+                                    <li>Input: 105 EEG channels</li>
+                                    <li>2 Layers, 256 Hidden Units</li>
+                                    <li>Bidirectional (Forward + Backward)</li>
+                                </ul>
+                                <p className="mt-1">Output: <code className="text-orange-300">[Batch, 2750, 512]</code></p>
+                            </div>
+                        </Section>
+
+                        <Section title="3. Attention Mechanism">
+                            <p className="text-xs"><strong>Bahdanau Attention:</strong></p>
+                            <p className="text-[10px] text-slate-500 mt-1">Learns alignment between EEG timesteps and words.</p>
+                            <p className="font-mono text-[10px] bg-slate-800 p-1.5 rounded mt-1">
+                                context = sum(attention_weights * encoder_outputs)
+                            </p>
+                        </Section>
+
+
+                    </div>
+
+                    {/* Right Column */}
+                    <div className="space-y-4">
+                        <Section title="4. Decoder (Unidirectional LSTM)">
+                            <ul className="list-disc list-inside space-y-0.5 text-slate-400 text-xs">
+                                <li><strong>Type:</strong> 2-Layer LSTM (256 units)</li>
+                                <li><strong>Input:</strong> Previous word embedding + Context</li>
+                                <li><strong>Generation:</strong> Auto-regressive (word-by-word)</li>
+
+                            </ul>
+                        </Section>
+
+                        <Section title="5. Training Objectives">
+                            <div className="space-y-2">
+                                <div>
+                                    <strong className="text-white">Teacher Forcing:</strong>
+                                    <p className="text-[10px] text-slate-500">Feed ground-truth words during training.</p>
+                                </div>
+                                <div>
+                                    <strong className="text-white">Loss Function:</strong>
+                                    <p className="font-mono text-[10px] bg-slate-800 p-1 rounded">CrossEntropy(predicted_logits, true_word)</p>
+                                </div>
+                                <div>
+                                    <strong className="text-white">Optimization:</strong>
+                                    <p className="text-[10px] text-slate-500">Adam (lr=0.001) + ReduceLROnPlateau</p>
+                                </div>
+                            </div>
+                        </Section>
+
+                        <Section title="6. Inference Pipeline">
+                            <ol className="list-decimal list-inside space-y-0.5 text-slate-400 text-xs">
+                                <li>Encode full EEG sequence</li>
+                                <li>Initialize decoder with &lt;SOS&gt;</li>
+                                <li>Loop until &lt;EOS&gt; or max length:</li>
+                                <ul className="list-disc list-inside pl-4 text-[10px]">
+                                    <li>Calculate Attention</li>
+                                    <li>Predict next word</li>
+                                    <li>Feed back as input</li>
+                                </ul>
+                            </ol>
+                        </Section>
+                    </div>
+                </div>
+            </div>
+        ),
+    },
+
+
+
+    {
         title: "Experimentation & Results",
         content: (
             <div className="space-y-8">
@@ -279,7 +371,7 @@ export default function PresentationPage() {
                 />
             </div>
 
-            <main className="flex-1 flex items-center justify-center relative">
+            <main className="flex-1 flex flex-col relative overflow-hidden">
                 <AnimatePresence mode="wait">
                     <Slide
                         key={currentSlide}
