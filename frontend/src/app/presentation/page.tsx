@@ -5,30 +5,73 @@ import { AnimatePresence } from "framer-motion";
 import Slide from "@/components/Slide";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { X } from "lucide-react";
+import { X, Brain, Activity, MessageSquare, ArrowRight } from "lucide-react";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell } from 'recharts';
+
+const chartData = [
+    { name: 'Transformer', score: 40, color: '#06b6d4' },
+    { name: 'LSTM', score: 33.4, color: '#fb923c' }
+];
 
 const slides = [
     {
         title: "Problem Statement",
         content: (
-            <div className="space-y-6 text-lg text-zinc-300">
-                <p>
-                    Communication is a fundamental human right, yet millions of people suffering from motor neuron diseases (like ALS), spinal cord injuries, or locked-in syndrome lose the ability to speak or type.
-                </p>
-                <p>
-                    Current solutions like eye-tracking or invasive implants are often expensive, slow, or require risky surgery.
-                </p>
-                <div className="p-6 bg-red-500/10 border border-red-500/20 rounded-xl mt-8">
-                    <h3 className="text-xl font-semibold text-red-400 mb-2">The Challenge</h3>
-                    <p>
-                        How can we create a non-invasive, affordable, and real-time communication interface that translates brain activity directly into text?
+            <div className="h-full flex flex-col justify-center">
+                {/* Brain-to-Text Illustration */}
+                <div className="flex items-center justify-center gap-8 mb-12" >
+                    <div className="flex flex-col items-center gap-3">
+                        <div className="w-24 h-24 rounded-2xl bg-slate-900/80 border border-slate-700 flex items-center justify-center shadow-[0_0_30px_rgba(139,92,246,0.15)] group hover:border-violet-500/50 transition-all">
+                            <Brain className="w-10 h-10 text-violet-400 group-hover:scale-110 transition-transform duration-300" />
+                        </div>
+                        <span className="text-sm text-slate-400 font-mono tracking-wider">NEURAL SIGNALS</span>
+                    </div>
+
+                    <div className="flex flex-col gap-1">
+                        <ArrowRight className="w-6 h-6 text-slate-700 animate-pulse" />
+                    </div>
+
+                    <div className="flex flex-col items-center gap-3">
+                        <div className="w-24 h-24 rounded-2xl bg-slate-900/80 border border-slate-700 flex items-center justify-center shadow-[0_0_30px_rgba(6,182,212,0.15)] group hover:border-cyan-500/50 transition-all">
+                            <Activity className="w-10 h-10 text-cyan-400 group-hover:scale-110 transition-transform duration-300" />
+                        </div>
+                        <span className="text-sm text-slate-400 font-mono tracking-wider">DECODING</span>
+                    </div>
+
+                    <div className="flex flex-col gap-1">
+                        <ArrowRight className="w-6 h-6 text-slate-700 animate-pulse" />
+                    </div>
+
+                    <div className="flex flex-col items-center gap-3">
+                        <div className="w-24 h-24 rounded-2xl bg-slate-900/80 border border-slate-700 flex items-center justify-center shadow-[0_0_30px_rgba(16,185,129,0.15)] group hover:border-emerald-500/50 transition-all">
+                            <MessageSquare className="w-10 h-10 text-emerald-400 group-hover:scale-110 transition-transform duration-300" />
+                        </div>
+                        <span className="text-sm text-slate-400 font-mono tracking-wider">COMMUNICATION</span>
+                    </div>
+                </div >
+
+                <div className="space-y-6 text-lg text-zinc-300 max-w-4xl mx-auto text-center">
+                    <p className="leading-relaxed">
+                        Communication is a fundamental human right, yet millions of people suffering from <span className="text-slate-100 font-medium">motor neuron diseases</span>, spinal cord injuries, or locked-in syndrome lose the ability to speak or type.
                     </p>
+                    <p className="leading-relaxed">
+                        Current solutions like eye-tracking or invasive implants are often expensive, slow, or require risky surgery.
+                    </p>
+                    <div className="p-6 bg-gradient-to-r from-red-500/10 to-orange-500/10 border border-red-500/20 rounded-xl mt-8 text-left">
+                        <h3 className="text-lg font-semibold text-red-400 mb-2 flex items-center gap-2">
+                            <span className="w-1.5 h-1.5 rounded-full bg-red-500"></span>
+                            The Challenge
+                        </h3>
+                        <p className="text-base text-red-100/80">
+                            How can we create a <span className="text-white font-medium">non-invasive</span>, <span className="text-white font-medium">affordable</span>, and <span className="text-white font-medium">real-time</span> communication interface that translates brain activity directly into text?
+                        </p>
+                    </div>
                 </div>
-            </div>
+            </div >
         ),
     },
     {
-        title: "Methodology",
+        title: "Method 1 : Transformer based approach",
         content: (
             <div className="space-y-4 h-full">
                 <div className="text-center mb-4">
@@ -98,36 +141,7 @@ const slides = [
         ),
     },
     {
-        title: "Model Architecture",
-        content: (
-            <div className="space-y-6">
-                <p className="text-lg text-zinc-300">
-                    We utilize a hybrid architecture combining <strong>Convolutional Neural Networks (CNNs)</strong> for spatial feature extraction and <strong>Transformers</strong> for temporal sequence modeling.
-                </p>
-
-                <div className="relative w-full h-64 bg-zinc-900 rounded-2xl border border-zinc-800 flex items-center justify-center overflow-hidden">
-                    {/* Abstract representation of the architecture */}
-                    <div className="flex items-center gap-4">
-                        <div className="w-24 h-24 bg-indigo-500/20 border border-indigo-500 rounded-lg flex items-center justify-center text-indigo-400 font-mono text-sm">Input (EEG)</div>
-                        <div className="w-8 h-0.5 bg-zinc-700"></div>
-                        <div className="w-32 h-32 bg-purple-500/20 border border-purple-500 rounded-lg flex flex-col items-center justify-center text-purple-400 font-mono text-sm gap-2">
-                            <span>CNN Encoder</span>
-                            <span className="text-xs opacity-50">Spatial Features</span>
-                        </div>
-                        <div className="w-8 h-0.5 bg-zinc-700"></div>
-                        <div className="w-32 h-32 bg-pink-500/20 border border-pink-500 rounded-lg flex flex-col items-center justify-center text-pink-400 font-mono text-sm gap-2">
-                            <span>Transformer</span>
-                            <span className="text-xs opacity-50">Sequence Modeling</span>
-                        </div>
-                        <div className="w-8 h-0.5 bg-zinc-700"></div>
-                        <div className="w-24 h-24 bg-green-500/20 border border-green-500 rounded-lg flex items-center justify-center text-green-400 font-mono text-sm">Output (Text)</div>
-                    </div>
-                </div>
-            </div>
-        ),
-    },
-    {
-        title: "Methodology - Seq2Seq LSTM Model",
+        title: "Method 2 : LSTM based approach",
         content: (
             <div className="space-y-4 pr-2">
                 <div className="text-center mb-4">
@@ -215,89 +229,90 @@ const slides = [
             </div>
         ),
     },
-
-
-
     {
         title: "Experimentation & Results",
         content: (
-            <div className="space-y-8">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    {/* Metrics Card */}
-                    <div className="p-6 bg-slate-900/50 rounded-2xl border border-slate-800">
-                        <h3 className="text-xl font-semibold mb-6 text-cyan-400">Performance Metrics</h3>
-                        <div className="space-y-6">
-                            <div>
-                                <div className="flex justify-between mb-2">
-                                    <span className="text-slate-400">Word Error Rate (WER)</span>
-                                    <span className="text-white font-mono">12.4%</span>
-                                </div>
-                                <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
-                                    <div className="h-full bg-cyan-500 w-[12.4%]" />
-                                </div>
-                            </div>
-                            <div>
-                                <div className="flex justify-between mb-2">
-                                    <span className="text-slate-400">Character Error Rate (CER)</span>
-                                    <span className="text-white font-mono">4.8%</span>
-                                </div>
-                                <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
-                                    <div className="h-full bg-violet-500 w-[4.8%]" />
-                                </div>
-                            </div>
-                            <div>
-                                <div className="flex justify-between mb-2">
-                                    <span className="text-slate-400">BLEU Score</span>
-                                    <span className="text-white font-mono">48.2</span>
-                                </div>
-                                <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
-                                    <div className="h-full bg-emerald-500 w-[48.2%]" />
-                                </div>
-                            </div>
+            <div className="space-y-6">
+                {/* Dataset Information */}
+                <div className="p-4 bg-slate-800/50 rounded-xl border border-slate-700">
+                    <h3 className="text-lg font-semibold mb-3 text-emerald-400">Dataset: ZuCo 2.0</h3>
+                    <div className="grid grid-cols-3 gap-4 text-sm">
+                        <div className="text-center">
+                            <div className="text-2xl font-bold text-cyan-400">5,915</div>
+                            <div className="text-slate-400">Total Samples</div>
                         </div>
-                    </div>
-
-                    {/* Comparison Chart */}
-                    <div className="p-6 bg-slate-900/50 rounded-2xl border border-slate-800 flex flex-col justify-between">
-                        <h3 className="text-xl font-semibold mb-4 text-violet-400">SOTA Comparison (Accuracy)</h3>
-                        <div className="flex items-end justify-between h-48 gap-4 px-4">
-                            <div className="w-full flex flex-col items-center gap-2">
-                                <div className="text-xs text-slate-500">Baseline</div>
-                                <div className="w-full bg-slate-700/50 rounded-t-lg h-[40%] relative group">
-                                    <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-xs opacity-0 group-hover:opacity-100 transition-opacity">72%</div>
-                                </div>
-                            </div>
-                            <div className="w-full flex flex-col items-center gap-2">
-                                <div className="text-xs text-slate-500">DeepEEG</div>
-                                <div className="w-full bg-slate-600/50 rounded-t-lg h-[65%] relative group">
-                                    <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-xs opacity-0 group-hover:opacity-100 transition-opacity">85%</div>
-                                </div>
-                            </div>
-                            <div className="w-full flex flex-col items-center gap-2">
-                                <div className="text-xs text-cyan-400 font-bold">Ours</div>
-                                <div className="w-full bg-gradient-to-t from-cyan-600 to-cyan-400 rounded-t-lg h-[88%] relative group shadow-[0_0_20px_rgba(6,182,212,0.3)]">
-                                    <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-xs font-bold text-cyan-400 opacity-100">92%</div>
-                                </div>
-                            </div>
+                        <div className="text-center">
+                            <div className="text-2xl font-bold text-violet-400">80%</div>
+                            <div className="text-slate-400">Training Set</div>
+                        </div>
+                        <div className="text-center">
+                            <div className="text-2xl font-bold text-orange-400">20%</div>
+                            <div className="text-slate-400">Validation Set</div>
                         </div>
                     </div>
                 </div>
 
-                {/* Confusion Matrix / Insight */}
-                <div className="p-6 bg-slate-900/50 rounded-2xl border border-slate-800">
-                    <h3 className="text-xl font-semibold mb-4 text-emerald-400">Key Findings</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-slate-400">
-                        <div className="flex items-start gap-3">
-                            <div className="w-2 h-2 mt-2 rounded-full bg-cyan-500" />
-                            <p>Model demonstrates robust performance on unseen subjects with minimal calibration.</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Comparison Chart + Key Findings */}
+                    <div className="p-6 bg-slate-900/50 rounded-2xl border border-slate-800 flex flex-col">
+                        <h3 className="text-xl font-semibold mb-6 text-violet-400">BLEU-1 Score Comparison</h3>
+                        <div className="w-full h-64 flex items-center justify-center mb-6">
+                            <BarChart width={400} height={240} data={chartData}>
+                                <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                                <XAxis dataKey="name" stroke="#94a3b8" />
+                                <YAxis stroke="#94a3b8" />
+                                <Tooltip
+                                    contentStyle={{
+                                        backgroundColor: '#1e293b',
+                                        border: '1px solid #475569',
+                                        borderRadius: '8px'
+                                    }}
+                                    labelStyle={{ color: '#e2e8f0' }}
+                                />
+                                <Bar dataKey="score" radius={[8, 8, 0, 0]}>
+                                    {chartData.map((entry, index) => (
+                                        <Cell key={`cell-${index}`} fill={entry.color} />
+                                    ))}
+                                </Bar>
+                            </BarChart>
                         </div>
-                        <div className="flex items-start gap-3">
-                            <div className="w-2 h-2 mt-2 rounded-full bg-violet-500" />
-                            <p>Significant reduction in decoding latency compared to previous RNN-based approaches.</p>
+
+                        {/* Key Findings */}
+                        <div className="border-t border-slate-700 pt-6 mt-2">
+                            <h3 className="text-lg font-semibold mb-4 text-emerald-400">Key Findings</h3>
+                            <div className="flex flex-col gap-4 text-sm text-slate-400">
+                                <div className="flex items-start gap-3">
+                                    <div className="w-1.5 h-1.5 mt-1.5 rounded-full bg-cyan-500 flex-shrink-0" />
+                                    <p className="leading-relaxed">The transformer model successfully extracts some semantic information from raw EEG, but still faces significant challenges due to noise, variability, and limited training data.</p>
+                                </div>
+                                <div className="flex items-start gap-3">
+                                    <div className="w-1.5 h-1.5 mt-1.5 rounded-full bg-violet-500 flex-shrink-0" />
+                                    <p className="leading-relaxed">The LSTM model effectively captures temporal dependencies in neural activity during natural reading, while the attention mechanism learns interpretable alignments between brain signals and generated words, revealing which neural patterns correspond to specific linguistic elements. </p>
+                                </div>
+                            </div>
                         </div>
-                        <div className="flex items-start gap-3">
-                            <div className="w-2 h-2 mt-2 rounded-full bg-emerald-500" />
-                            <p>High accuracy maintained even in noisy environments with muscle artifacts.</p>
+                    </div>
+
+                    {/* Training Curves */}
+                    <div className="p-6 bg-slate-900/50 rounded-2xl border border-slate-800">
+                        <h3 className="text-xl font-semibold mb-4 text-violet-400">Training Curves</h3>
+                        <div className="space-y-4">
+                            <div className="bg-slate-800/50 rounded-lg p-3 border border-slate-700">
+                                <h4 className="text-sm font-semibold text-cyan-400 mb-2">Transformer Loss</h4>
+                                <img
+                                    src="/results_images/filtered.png"
+                                    alt="Transformer Loss vs Epoch"
+                                    className="w-full h-auto rounded border border-slate-700"
+                                />
+                            </div>
+                            <div className="bg-slate-800/50 rounded-lg p-3 border border-slate-700">
+                                <h4 className="text-sm font-semibold text-orange-400 mb-2">LSTM Loss</h4>
+                                <img
+                                    src="/results_images/lstm_loss.jpg"
+                                    alt="LSTM Loss vs Epoch"
+                                    className="w-full h-auto rounded border border-slate-700"
+                                />
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -305,24 +320,40 @@ const slides = [
         ),
     },
     {
-        title: "Future Scope",
+        title: "References",
         content: (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="p-6 bg-zinc-900/50 rounded-xl border border-zinc-800 hover:border-indigo-500/50 transition-colors">
-                    <h3 className="text-xl font-semibold mb-2 text-indigo-400">Real-time Optimization</h3>
-                    <p className="text-zinc-400">Reducing latency to under 50ms for seamless conversation flow.</p>
-                </div>
-                <div className="p-6 bg-zinc-900/50 rounded-xl border border-zinc-800 hover:border-purple-500/50 transition-colors">
-                    <h3 className="text-xl font-semibold mb-2 text-purple-400">Wearable Integration</h3>
-                    <p className="text-zinc-400">Deploying the model on edge devices and consumer-grade EEG headsets.</p>
-                </div>
-                <div className="p-6 bg-zinc-900/50 rounded-xl border border-zinc-800 hover:border-pink-500/50 transition-colors">
-                    <h3 className="text-xl font-semibold mb-2 text-pink-400">Multimodal Learning</h3>
-                    <p className="text-zinc-400">Combining EEG with eye-tracking and EMG for higher accuracy.</p>
-                </div>
-                <div className="p-6 bg-zinc-900/50 rounded-xl border border-zinc-800 hover:border-green-500/50 transition-colors">
-                    <h3 className="text-xl font-semibold mb-2 text-green-400">Vocabulary Expansion</h3>
-                    <p className="text-zinc-400">Scaling the language model to support open-vocabulary decoding.</p>
+            <div className="space-y-6">
+                <div className="grid grid-cols-1 gap-4">
+                    <ReferenceCard
+                        title="DeWave: Discrete EEG waves encoding for brain dynamics to text translation"
+                        authors="Y. Duan, J. Zhou, Z. Wang, Y.-K. Wang, and C.-T. Lin (2023)"
+                        journal="arXiv preprint arXiv:2309.14030"
+                        link="https://arxiv.org/abs/2309.14030"
+                    />
+                    <ReferenceCard
+                        title="Attention Is All You Need"
+                        authors="A. Vaswani et al. (2017)"
+                        journal="arXiv preprint arXiv:1706.03762"
+                        link="https://arxiv.org/abs/1706.03762"
+                    />
+                    <ReferenceCard
+                        title="A simple framework for contrastive learning of visual representations"
+                        authors="T. Chen, S. Kornblith, M. Norouzi, and G. Hinton (2020)"
+                        journal="arXiv preprint arXiv:2002.05709"
+                        link="https://arxiv.org/abs/2002.05709"
+                    />
+                    <ReferenceCard
+                        title="Decoding EEG Brain Activity for Multi-Modal Natural Language Processing"
+                        authors="N. Hollenstein et al. (2021)"
+                        journal="Front. Hum. Neurosci., vol. 15"
+                        link="https://doi.org/10.3389/fnhum.2021.659410"
+                    />
+                    <ReferenceCard
+                        title="Large language models reveal the structure of the mental lexicon"
+                        authors="E. Fedorenko, S. Bajaj, J. W. H. Stoeckle, and M. Schrimpf (2024)"
+                        journal="Nat. Mach. Intell."
+                        link="https://doi.org/10.1038/s42256-024-00824-8"
+                    />
                 </div>
             </div>
         ),
@@ -410,5 +441,15 @@ function Section({ title, children }: { title: string, children: React.ReactNode
                 {children}
             </div>
         </div>
+    )
+}
+
+function ReferenceCard({ title, authors, journal, link }: { title: string, authors: string, journal: string, link: string }) {
+    return (
+        <a href={link} target="_blank" rel="noopener noreferrer" className="block p-4 bg-slate-900/50 rounded-xl border border-slate-800 hover:border-violet-500/50 hover:bg-slate-800/50 transition-all group">
+            <h4 className="text-base font-semibold text-cyan-400 mb-1 group-hover:text-cyan-300">{title}</h4>
+            <p className="text-sm text-slate-300 mb-1">{authors}</p>
+            <p className="text-xs text-slate-500 italic">{journal}</p>
+        </a>
     )
 }
