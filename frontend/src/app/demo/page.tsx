@@ -75,6 +75,7 @@ export default function DemoPage() {
     const [selectedCase, setSelectedCase] = useState<typeof testCases[0] | null>(null);
     const [isProcessing, setIsProcessing] = useState(false);
     const [result, setResult] = useState<string | null>(null);
+    const [expectedOutput, setExpectedOutput] = useState<string | null>(null);
     const [tensorData, setTensorData] = useState<string | null>(null);
     const [isViewingTensor, setIsViewingTensor] = useState(false);
     const [loadingTensor, setLoadingTensor] = useState(false);
@@ -91,6 +92,7 @@ export default function DemoPage() {
         setSelectedCase(testCase);
         setIsProcessing(true);
         setResult(null);
+        setExpectedOutput(null);
 
         try {
             // 1. Fetch the CSV data from the public folder
@@ -119,6 +121,7 @@ export default function DemoPage() {
 
             const data = await apiResponse.json();
             setResult(data.generated_text);
+            setExpectedOutput(data.expected_output);
 
         } catch (error) {
             console.error("Error processing test case:", error);
@@ -163,6 +166,7 @@ export default function DemoPage() {
     const reset = () => {
         setSelectedCase(null);
         setResult(null);
+        setExpectedOutput(null);
         setIsProcessing(false);
     };
 
@@ -235,6 +239,13 @@ export default function DemoPage() {
             <header className="flex items-center justify-between max-w-6xl mx-auto w-full mb-12">
                 <Link href="/" className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 to-violet-400">
                     ThinkFlow
+                </Link>
+                <Link
+                    href="/"
+                    className="flex items-center gap-2 px-4 py-2 bg-slate-900/50 border border-slate-800 rounded-xl hover:border-cyan-500/50 hover:bg-slate-900/80 transition-all group"
+                >
+                    <Home className="w-4 h-4 text-slate-400 group-hover:text-cyan-400 transition-colors" />
+                    <span className="text-sm font-medium text-slate-300 group-hover:text-cyan-300 transition-colors">Back to Homepage</span>
                 </Link>
             </header>
 
@@ -337,14 +348,28 @@ export default function DemoPage() {
                                         animate={{ opacity: 1, y: 0 }}
                                         className="space-y-6"
                                     >
-                                        <div className="p-6 bg-cyan-500/10 border border-cyan-500/20 rounded-2xl">
-                                            <div className="flex items-center gap-2 mb-4 text-cyan-400">
-                                                <CheckCircle className="w-5 h-5" />
-                                                <span className="font-medium">Decoding Complete</span>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            {/* Generated Output */}
+                                            <div className="p-6 bg-cyan-500/10 border border-cyan-500/20 rounded-2xl">
+                                                <div className="flex items-center gap-2 mb-4 text-cyan-400">
+                                                    <CheckCircle className="w-5 h-5" />
+                                                    <span className="font-medium">Generated Output</span>
+                                                </div>
+                                                <p className="text-base leading-relaxed text-cyan-50">
+                                                    "{result}"
+                                                </p>
                                             </div>
-                                            <p className="text-lg leading-relaxed text-cyan-50">
-                                                "{result}"
-                                            </p>
+
+                                            {/* Expected Output */}
+                                            <div className="p-6 bg-violet-500/10 border border-violet-500/20 rounded-2xl">
+                                                <div className="flex items-center gap-2 mb-4 text-violet-400">
+                                                    <FileText className="w-5 h-5" />
+                                                    <span className="font-medium">Expected Output</span>
+                                                </div>
+                                                <p className="text-base leading-relaxed text-violet-50">
+                                                    "{expectedOutput}"
+                                                </p>
+                                            </div>
                                         </div>
 
                                         <button
