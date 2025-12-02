@@ -9,6 +9,13 @@ import numpy as np
 import flask
 from flask import request, jsonify
 from flask_cors import CORS
+import sys
+sys.path.append('hmm_model')
+from src.feature_extractor import SupervisedCNNEncoder
+from src.predictor import SentencePredictor
+from src.config import *
+import pickle
+
 
 
 app = flask.Flask(__name__)
@@ -256,6 +263,60 @@ bart_model = BartForConditionalGeneration.from_pretrained("facebook/bart-large")
 # Create a projection layer to match BART's hidden size (1024)
 projection = nn.Linear(512, 1024).to(device)
 print("Model loaded successfully!")
+
+# --- HMM Model Initialization ---
+print("Loading HMM models...")
+hmm_encoder = SupervisedCNNEncoder(
+    input_channels=CNN_INPUT_CHANNELS,
+    hidden_channels=CNN_HIDDEN_CHANNELS,
+    num_classes=5, # Set to 5 to match the checkpoint
+    sequence_length=SEQUENCE_LENGTH
+)
+# Load CNN encoder weights
+cnn_checkpoint = torch.load('hmm_model/checkpoints/cnn_encoder.pth', map_location=device)
+hmm_encoder.load_state_dict(cnn_checkpoint['model_state_dict'])
+hmm_encoder.to(device)
+hmm_encoder.eval()
+
+# Load HMM predictor
+hmm_predictor = SentencePredictor(n_states=HMM_N_STATES, n_features=HMM_N_FEATURES)
+hmm_predictor.load('hmm_model/checkpoints/hmm_models.pkl')
+print("HMM Models loaded successfully!")
+
+@app.route('/predict_hmm', methods=['POST'])
+def predict_hmm():
+    data = request.json
+    filename = data.get('filename')
+    
+    if not filename:
+        return jsonify({'error': 'No filename provided'}), 400
+        
+    try:
+        # Load and preprocess the EEG data from file
+        # Note: load_and_pad_eeg returns [105, 5500] tensor on device
+        input_eeg = load_and_pad_eeg(filename).unsqueeze(0) # [1, 105, 5500]
+        
+        with torch.no_grad():
+            # Extract features using CNN
+            features = hmm_encoder.get_features(input_eeg) # [1, 57, 32] (assuming 32 features)
+            
+            # Convert to numpy for HMM
+            features_np = features.cpu().numpy()[0].T # [57, 32]
+            
+            # Normalize features (standardization)
+            features_normalized = (features_np - features_np.mean(axis=0)) / (features_np.std(axis=0) + 1e-8)
+            
+            # Predict using HMM
+            predicted_text, confidence = hmm_predictor.predict(features_normalized)
+            
+            return {'generated_text': predicted_text, 'confidence': float(confidence)}
+            
+    except Exception as e:
+        print(f"Error during HMM prediction: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
 
 if __name__ == "__main__":
     app.run(debug=True, port=5000)

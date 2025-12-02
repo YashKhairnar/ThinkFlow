@@ -4,12 +4,13 @@ import { motion } from "framer-motion";
 import { useEffect, useState } from "react";
 
 interface WaveformProps {
-  isActive?: boolean;
-  color?: string;
+  isActive: boolean;
+  color?: "cyan" | "violet";
 }
 
-export default function Waveform({ isActive = false, color = "#06b6d4" }: WaveformProps) {
+export default function Waveform({ isActive, color = "cyan" }: WaveformProps) {
   const [bars, setBars] = useState<number[]>(new Array(40).fill(10));
+  const barColor = color === "cyan" ? "bg-cyan-500" : "bg-violet-500";
 
   useEffect(() => {
     if (!isActive) {
@@ -32,8 +33,7 @@ export default function Waveform({ isActive = false, color = "#06b6d4" }: Wavefo
           initial={{ height: 10 }}
           animate={{ height: isActive ? height : 10 }}
           transition={{ type: "spring", stiffness: 300, damping: 20 }}
-          className="w-1.5 rounded-full"
-          style={{ backgroundColor: color, opacity: 0.8 }}
+          className={`w-1 rounded-full ${barColor} transition-all duration-300 ease-in-out`}
         />
       ))}
     </div>

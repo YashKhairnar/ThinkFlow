@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { FileText, CheckCircle, Loader2, RefreshCw, Zap, Eye, X } from "lucide-react";
+import { FileText, CheckCircle, Loader2, RefreshCw, Zap, Eye, X, Activity } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Waveform from "@/components/Waveform";
 import Link from "next/link";
@@ -38,6 +38,23 @@ const testCases = [
     }
 ];
 
+const hmmTestCases = [
+    {
+        id: 1,
+        name: "HMM Test Case 1",
+        expectedOutput: "However, the U.S. Navy accepted him in September of that year.",
+        shape: "[1, 105, 5500]",
+        file: 'processed_data/rawdata_5080.csv'
+    },
+    {
+        id: 2,
+        name: "HMM Test Case 2",
+        expectedOutput: "Considered the icon of American liberalism, Kennedy is the youngest person ever to be elected president of the country, at the age of 43.",
+        shape: "[1, 105, 5500]",
+        file: 'processed_data/rawdata_5425.csv'
+    }
+];
+
 export default function DemoPage() {
     const [selectedCase, setSelectedCase] = useState<typeof testCases[0] | null>(null);
     const [isProcessing, setIsProcessing] = useState(false);
@@ -45,6 +62,12 @@ export default function DemoPage() {
     const [tensorData, setTensorData] = useState<string | null>(null);
     const [isViewingTensor, setIsViewingTensor] = useState(false);
     const [loadingTensor, setLoadingTensor] = useState(false);
+
+    // HMM State
+    const [selectedHmmCase, setSelectedHmmCase] = useState<typeof hmmTestCases[0] | null>(null);
+    const [isHmmProcessing, setIsHmmProcessing] = useState(false);
+    const [hmmResult, setHmmResult] = useState<{ text: string, confidence: number } | null>(null);
+
 
     const processTestCase = async (testCase: typeof testCases[0]) => {
         setSelectedCase(testCase);
@@ -87,6 +110,53 @@ export default function DemoPage() {
         }
     };
 
+    const processHmmTestCase = async (testCase: typeof hmmTestCases[0]) => {
+        setSelectedHmmCase(testCase);
+        setIsHmmProcessing(true);
+        setHmmResult(null);
+
+        try {
+            // 1. Send to backend inference API
+            // The backend reads the file directly from disk, so we pass the relative path
+            // But wait, the backend expects a path that it can read.
+            // inference.py is in root.
+            // The files are in frontend/public/processed_data AND hmm_model/processed_data.
+            // Let's use the path relative to the backend.
+            // We copied files to frontend/public/processed_data.
+            // But backend might not know about frontend/public.
+            // However, the files are ALSO in hmm_model/processed_data.
+            // Let's pass the path 'hmm_model/processed_data/' + filename
+
+            const filename = testCase.file.split('/').pop();
+            const backendPath = `hmm_model/processed_data/${filename}`;
+
+            const apiResponse = await fetch('http://127.0.0.1:5000/predict_hmm', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    filename: backendPath
+                }),
+            });
+
+            if (!apiResponse.ok) throw new Error("HMM Inference failed");
+
+            // Add artificial delay for better UX (3 seconds)
+            await new Promise(resolve => setTimeout(resolve, 3000));
+
+            const data = await apiResponse.json();
+            setHmmResult({ text: data.generated_text, confidence: data.confidence });
+
+        } catch (error) {
+            console.error("Error processing HMM test case:", error);
+            setHmmResult({ text: "Error: Failed to process EEG signal.", confidence: 0 });
+        } finally {
+            setIsHmmProcessing(false);
+        }
+    };
+
+
     const viewTensor = async (e: React.MouseEvent, testCase: typeof testCases[0]) => {
         e.stopPropagation(); // Prevent triggering the card click
         setLoadingTensor(true);
@@ -121,6 +191,13 @@ export default function DemoPage() {
         setResult(null);
         setIsProcessing(false);
     };
+
+    const resetHmm = () => {
+        setSelectedHmmCase(null);
+        setHmmResult(null);
+        setIsHmmProcessing(false);
+    };
+
 
     return (
         <div className="min-h-screen bg-black text-white p-6 flex flex-col">
@@ -252,6 +329,133 @@ export default function DemoPage() {
                         </motion.div>
                     )}
                 </AnimatePresence>
+
+                {/* HMM Model Section */}
+                <div className="text-center mb-8 mt-16 border-t border-slate-800 pt-16">
+                    <h1 className="text-4xl font-bold mb-4 text-transparent bg-clip-text bg-gradient-to-r from-violet-400 to-purple-400">HMM Model</h1>
+                    <p className="text-slate-400">Probabilistic decoding using Hidden Markov Models.</p>
+                </div>
+
+                <AnimatePresence mode="wait">
+                    {!selectedHmmCase ? (
+                        <motion.div
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -20 }}
+                            className="grid grid-cols-1 md:grid-cols-2 gap-4"
+                        >
+                            {hmmTestCases.map((testCase) => (
+                                <motion.div
+                                    key={testCase.id}
+                                    onClick={() => processHmmTestCase(testCase)}
+                                    className="p-6 bg-slate-900/50 border border-slate-800 rounded-2xl hover:border-violet-500/50 hover:bg-slate-900/80 transition-all text-left group relative cursor-pointer"
+                                    whileHover={{ scale: 1.02 }}
+                                    whileTap={{ scale: 0.98 }}
+                                >
+                                    <div className="flex items-start justify-between mb-4">
+                                        <div className="w-12 h-12 bg-violet-500/10 rounded-xl flex items-center justify-center group-hover:bg-violet-500/20 transition-colors">
+                                            <Activity className="w-6 h-6 text-violet-400" />
+                                        </div>
+                                        <button
+                                            onClick={(e) => viewTensor(e, testCase)}
+                                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-violet-500/20 hover:text-violet-300 border border-slate-700 hover:border-violet-500/50 transition-all text-xs font-mono text-slate-400 z-10"
+                                        >
+                                            <Eye className="w-3 h-3" />
+                                            View Tensor
+                                        </button>
+                                    </div>
+                                    <h3 className="text-lg font-semibold mb-2 group-hover:text-violet-300 transition-colors">
+                                        {testCase.name}
+                                    </h3>
+                                    <div className="text-xs text-slate-500 font-mono bg-black/40 p-2 rounded border border-slate-800">
+                                        Expected: "{testCase.expectedOutput.substring(0, 50)}..."
+                                    </div>
+                                </motion.div>
+                            ))}
+                        </motion.div>
+                    ) : (
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            className="w-full"
+                        >
+                            <div className="bg-slate-900/50 border border-slate-800 rounded-3xl p-8">
+                                <div className="flex items-center justify-between mb-8">
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-12 h-12 bg-violet-500/20 rounded-xl flex items-center justify-center">
+                                            <Activity className="w-6 h-6 text-violet-400" />
+                                        </div>
+                                        <div>
+                                            <h3 className="font-semibold text-lg">{selectedHmmCase.name}</h3>
+                                            <p className="text-sm text-slate-500">Shape of Tensor: {selectedHmmCase.shape}</p>
+                                        </div>
+                                    </div>
+                                    {!isHmmProcessing && !hmmResult && (
+                                        <button
+                                            onClick={resetHmm}
+                                            className="text-slate-500 hover:text-white transition-colors"
+                                        >
+                                            Change Test
+                                        </button>
+                                    )}
+                                </div>
+
+                                <div className="mb-8 p-6 bg-black/40 rounded-2xl border border-slate-800/50">
+                                    <div className="flex items-center justify-between mb-4">
+                                        <span className="text-sm font-medium text-slate-400">Signal Activity</span>
+                                        {isHmmProcessing && (
+                                            <span className="flex items-center gap-2 text-xs text-violet-400">
+                                                <Loader2 className="w-3 h-3 animate-spin" />
+                                                Decoding...
+                                            </span>
+                                        )}
+                                    </div>
+                                    <Waveform isActive={isHmmProcessing} color="violet" />
+                                </div>
+
+                                {!hmmResult ? (
+                                    <button
+                                        onClick={() => processHmmTestCase(selectedHmmCase)}
+                                        disabled={isHmmProcessing}
+                                        className="w-full py-4 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl font-semibold transition-all flex items-center justify-center gap-2"
+                                    >
+                                        {isHmmProcessing ? "Processing Signal..." : "Decode with HMM"}
+                                    </button>
+                                ) : (
+                                    <motion.div
+                                        initial={{ opacity: 0, y: 10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        className="space-y-6"
+                                    >
+                                        <div className="p-6 bg-violet-500/10 border border-violet-500/20 rounded-2xl">
+                                            <div className="flex items-center justify-between mb-4">
+                                                <div className="flex items-center gap-2 text-violet-400">
+                                                    <CheckCircle className="w-5 h-5" />
+                                                    <span className="font-medium">Decoding Complete</span>
+                                                </div>
+                                                <span className="text-xs font-mono text-violet-300 bg-violet-500/20 px-2 py-1 rounded">
+                                                    Confidence: {hmmResult.confidence.toFixed(2)}
+                                                </span>
+                                            </div>
+                                            <p className="text-lg leading-relaxed text-violet-50">
+                                                "{hmmResult.text}"
+                                            </p>
+                                        </div>
+
+                                        <button
+                                            onClick={resetHmm}
+                                            className="w-full py-4 bg-slate-800 hover:bg-slate-700 rounded-xl font-medium transition-all flex items-center justify-center gap-2"
+                                        >
+                                            <RefreshCw className="w-4 h-4" />
+                                            Try Another Test Case
+                                        </button>
+                                    </motion.div>
+                                )}
+                            </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+
 
                 {/* Tensor View Modal */}
                 <AnimatePresence>
