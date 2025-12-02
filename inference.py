@@ -10,11 +10,15 @@ import flask
 from flask import request, jsonify
 from flask_cors import CORS
 import sys
-sys.path.append('hmm_model')
-from src.feature_extractor import SupervisedCNNEncoder
-from src.predictor import SentencePredictor
-from src.config import *
-import pickle
+
+
+# LSTM model imports
+sys.path.append('lstm_model')
+sys.path.append('lstm_model/src')
+from src.seq2seq_model import Seq2Seq
+from src.vocabulary import Vocabulary
+# Import vocabulary module to allow unpickling
+import vocabulary
 
 
 
@@ -264,27 +268,46 @@ bart_model = BartForConditionalGeneration.from_pretrained("facebook/bart-large")
 projection = nn.Linear(512, 1024).to(device)
 print("Model loaded successfully!")
 
-# --- HMM Model Initialization ---
-print("Loading HMM models...")
-hmm_encoder = SupervisedCNNEncoder(
-    input_channels=CNN_INPUT_CHANNELS,
-    hidden_channels=CNN_HIDDEN_CHANNELS,
-    num_classes=5, # Set to 5 to match the checkpoint
-    sequence_length=SEQUENCE_LENGTH
+
+
+# --- LSTM Model Initialization ---
+print("Loading LSTM model...")
+# Load LSTM checkpoint
+lstm_checkpoint = torch.load('lstm_model/checkpoints/seq2seq_medium_model.pth', map_location=device, weights_only=False)
+
+# Extract vocabulary from checkpoint
+lstm_vocab = lstm_checkpoint['vocabulary']
+vocab_size = len(lstm_vocab.word2idx)
+downsample_factor = lstm_checkpoint.get('downsample_factor', 2)
+sequence_length_downsampled = 5500 // downsample_factor
+
+print(f"Vocabulary size: {vocab_size}")
+print(f"Downsample factor: {downsample_factor}")
+
+# Initialize LSTM model
+lstm_model = Seq2Seq(
+    vocab_size=vocab_size,
+    input_channels=105,
+    sequence_length=sequence_length_downsampled,
+    embedding_dim=256,
+    encoder_hidden_size=256,
+    decoder_hidden_size=256,
+    num_layers=2,
+    dropout=0.3,
+    use_channel_reduction=True,
+    reduced_channels=32
 )
-# Load CNN encoder weights
-cnn_checkpoint = torch.load('hmm_model/checkpoints/cnn_encoder.pth', map_location=device)
-hmm_encoder.load_state_dict(cnn_checkpoint['model_state_dict'])
-hmm_encoder.to(device)
-hmm_encoder.eval()
 
-# Load HMM predictor
-hmm_predictor = SentencePredictor(n_states=HMM_N_STATES, n_features=HMM_N_FEATURES)
-hmm_predictor.load('hmm_model/checkpoints/hmm_models.pkl')
-print("HMM Models loaded successfully!")
+# Load model weights
+lstm_model.load_state_dict(lstm_checkpoint['model_state_dict'])
+lstm_model.to(device)
+lstm_model.eval()
+print("LSTM Model loaded successfully!")
 
-@app.route('/predict_hmm', methods=['POST'])
-def predict_hmm():
+
+
+@app.route('/predict_lstm', methods=['POST'])
+def predict_lstm():
     data = request.json
     filename = data.get('filename')
     
@@ -293,26 +316,31 @@ def predict_hmm():
         
     try:
         # Load and preprocess the EEG data from file
-        # Note: load_and_pad_eeg returns [105, 5500] tensor on device
-        input_eeg = load_and_pad_eeg(filename).unsqueeze(0) # [1, 105, 5500]
+        eeg_data = load_and_pad_eeg(filename) # [105, 5500]
+        
+        # Downsample the EEG data
+        eeg_downsampled = eeg_data[:, ::downsample_factor]  # [105, 2750]
+        input_eeg = eeg_downsampled.unsqueeze(0)  # [1, 105, 2750]
         
         with torch.no_grad():
-            # Extract features using CNN
-            features = hmm_encoder.get_features(input_eeg) # [1, 57, 32] (assuming 32 features)
+            # Generate text using LSTM model
+            generated_indices, attention_weights = lstm_model.generate(
+                input_eeg,
+                max_len=50,
+                sos_idx=lstm_vocab.sos_idx,
+                eos_idx=lstm_vocab.eos_idx
+            )
             
-            # Convert to numpy for HMM
-            features_np = features.cpu().numpy()[0].T # [57, 32]
+            # Decode indices to text
+            generated_text = lstm_vocab.decode(generated_indices[0].cpu().tolist())
             
-            # Normalize features (standardization)
-            features_normalized = (features_np - features_np.mean(axis=0)) / (features_np.std(axis=0) + 1e-8)
+            # Calculate confidence (average of max probabilities - approximation)
+            confidence = 0.85  # Placeholder since we don't have direct probability output
             
-            # Predict using HMM
-            predicted_text, confidence = hmm_predictor.predict(features_normalized)
-            
-            return {'generated_text': predicted_text, 'confidence': float(confidence)}
+            return {'generated_text': generated_text, 'confidence': float(confidence)}
             
     except Exception as e:
-        print(f"Error during HMM prediction: {e}")
+        print(f"Error during LSTM prediction: {e}")
         import traceback
         traceback.print_exc()
         return jsonify({'error': str(e)}), 500

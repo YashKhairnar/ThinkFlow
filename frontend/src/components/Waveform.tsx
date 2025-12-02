@@ -5,12 +5,12 @@ import { useEffect, useState } from "react";
 
 interface WaveformProps {
   isActive: boolean;
-  color?: "cyan" | "violet";
+  color?: "cyan" | "violet" | "orange";
 }
 
 export default function Waveform({ isActive, color = "cyan" }: WaveformProps) {
   const [bars, setBars] = useState<number[]>(new Array(40).fill(10));
-  const barColor = color === "cyan" ? "bg-cyan-500" : "bg-violet-500";
+  const barColor = color === "violet" ? "bg-violet-500" : color === "orange" ? "bg-orange-500" : "bg-cyan-500";
 
   useEffect(() => {
     if (!isActive) {

@@ -19,7 +19,7 @@ export default function Home() {
         </h1>
 
         <p className="text-xl md:text-2xl text-slate-400 mb-12 max-w-2xl mx-auto leading-relaxed font-light">
-          Decode raw <span className="text-cyan-400 font-medium">EEG signals</span> into fluent English using advanced <span className="text-violet-400 font-medium">Transformer models & HMM</span>.
+          Decode raw <span className="text-cyan-400 font-medium">EEG signals</span> into fluent English using advanced <span className="text-violet-400 font-medium">Transformer models & LSTM</span>.
         </p>
 
         <div className="flex flex-col md:flex-row items-center justify-center gap-6">

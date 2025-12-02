@@ -127,12 +127,12 @@ const slides = [
         ),
     },
     {
-        title: "HMM Methodology & Architecture",
+        title: "Methodology - Seq2Seq LSTM Model",
         content: (
             <div className="space-y-4 pr-2">
                 <div className="text-center mb-4">
-                    <h3 className="text-xl font-bold text-violet-400">Probabilistic EEG Decoding</h3>
-                    <p className="text-sm text-slate-400">Hybrid CNN-HMM Approach for Robust Sequence Modeling</p>
+                    <h3 className="text-xl font-bold text-orange-400">Seq2Seq LSTM Architecture</h3>
+                    <p className="text-sm text-slate-400">Bidirectional Encoder-Decoder with Attention Mechanism</p>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs text-slate-300">
@@ -140,179 +140,83 @@ const slides = [
                     <div className="space-y-4">
                         <Section title="1. Data Preprocessing">
                             <ul className="list-disc list-inside space-y-0.5 text-slate-400 text-xs">
-                                <li>Input: Raw EEG CSV (105 channels × T)</li>
-                                <li>Zero-padding to <code className="text-violet-300">5500</code> timestamps</li>
-                                <li><strong>Augmentation (6x):</strong> Scaling, Noise, Shift, Dropout</li>
-                                <li>Final Shape: <code className="text-violet-300">[Batch, 105, 5500]</code></li>
+                                <li>Input: Raw EEG CSV (105 channels)</li>
+                                <li><strong>Padding:</strong> Zero-pad to 5500 timestamps</li>
+                                <li><strong>Downsampling (2x):</strong> Reduces to 2750 steps</li>
+                                <li><strong>Augmentation (6x):</strong> Noise, Shift, Dropout</li>
                             </ul>
                         </Section>
 
-                        <Section title="2. Supervised CNN Encoder">
+                        <Section title="2. Encoder (Bidirectional LSTM)">
                             <div className="space-y-1 text-xs">
                                 <p><strong className="text-white">Architecture:</strong></p>
                                 <ul className="list-disc list-inside pl-2 text-slate-400">
-                                    <li>L1: Conv1D(105→64) + ReLU + BN + Drop(0.2)</li>
-                                    <li>L2: Conv1D(64→32) + ReLU + BN + Drop(0.2)</li>
-                                    <li>L3: Conv1D(32→32) + ReLU + BN</li>
+                                    <li>Input: 105 EEG channels</li>
+                                    <li>2 Layers, 256 Hidden Units</li>
+                                    <li>Bidirectional (Forward + Backward)</li>
                                 </ul>
-                                <p className="mt-1">Output: <code className="text-violet-300">[Batch, 32, ~688]</code></p>
+                                <p className="mt-1">Output: <code className="text-orange-300">[Batch, 2750, 512]</code></p>
                             </div>
                         </Section>
 
-                        <Section title="3. Feature Normalization">
-                            <p className="text-xs"><strong>Z-score Standardization:</strong></p>
+                        <Section title="3. Attention Mechanism">
+                            <p className="text-xs"><strong>Bahdanau Attention:</strong></p>
+                            <p className="text-[10px] text-slate-500 mt-1">Learns alignment between EEG timesteps and words.</p>
                             <p className="font-mono text-[10px] bg-slate-800 p-1.5 rounded mt-1">
-                                X_norm = (X - μ) / (σ + ε)
+                                context = sum(attention_weights * encoder_outputs)
                             </p>
-                            <p className="text-[10px] text-slate-500 mt-1">Stabilizes HMM training across scales.</p>
                         </Section>
 
-                        <Section title="4. Gaussian HMM Architecture">
-                            <ul className="list-disc list-inside space-y-0.5 text-slate-400 text-xs">
-                                <li><strong>Type:</strong> Gaussian Hidden Markov Model</li>
-                                <li><strong>States:</strong> 5 states per sentence</li>
-                                <li><strong>Features:</strong> 32 dimensions (from CNN)</li>
-                                <li><strong>Covariance:</strong> Diagonal (efficiency)</li>
-                                <li><strong>Training:</strong> Baum-Welch (EM Algorithm)</li>
-                            </ul>
-                        </Section>
+
                     </div>
 
                     {/* Right Column */}
                     <div className="space-y-4">
+                        <Section title="4. Decoder (Unidirectional LSTM)">
+                            <ul className="list-disc list-inside space-y-0.5 text-slate-400 text-xs">
+                                <li><strong>Type:</strong> 2-Layer LSTM (256 units)</li>
+                                <li><strong>Input:</strong> Previous word embedding + Context</li>
+                                <li><strong>Generation:</strong> Auto-regressive (word-by-word)</li>
+
+                            </ul>
+                        </Section>
+
                         <Section title="5. Training Objectives">
                             <div className="space-y-2">
                                 <div>
-                                    <strong className="text-white">CNN (Supervised):</strong>
-                                    <p className="font-mono text-[10px] bg-slate-800 p-1 rounded">L_CNN = CrossEntropy(pred, label)</p>
+                                    <strong className="text-white">Teacher Forcing:</strong>
+                                    <p className="text-[10px] text-slate-500">Feed ground-truth words during training.</p>
                                 </div>
                                 <div>
-                                    <strong className="text-white">HMM (Per-class EM):</strong>
-                                    <p className="font-mono text-[10px] bg-slate-800 p-1 rounded">Maximize log P(O|λ)</p>
-                                    <p className="text-[10px] text-slate-500">Updates: π (start), A (trans), μ, Σ</p>
+                                    <strong className="text-white">Loss Function:</strong>
+                                    <p className="font-mono text-[10px] bg-slate-800 p-1 rounded">CrossEntropy(predicted_logits, true_word)</p>
+                                </div>
+                                <div>
+                                    <strong className="text-white">Optimization:</strong>
+                                    <p className="text-[10px] text-slate-500">Adam (lr=0.001) + ReduceLROnPlateau</p>
                                 </div>
                             </div>
                         </Section>
 
                         <Section title="6. Inference Pipeline">
                             <ol className="list-decimal list-inside space-y-0.5 text-slate-400 text-xs">
-                                <li>Extract CNN features</li>
-                                <li>Normalize features</li>
-                                <li>Compute log-likelihood for each HMM</li>
-                                <li>Select max likelihood: <code className="text-violet-300">ŷ = argmax_s P(feat|HMM_s)</code></li>
+                                <li>Encode full EEG sequence</li>
+                                <li>Initialize decoder with &lt;SOS&gt;</li>
+                                <li>Loop until &lt;EOS&gt; or max length:</li>
+                                <ul className="list-disc list-inside pl-4 text-[10px]">
+                                    <li>Calculate Attention</li>
+                                    <li>Predict next word</li>
+                                    <li>Feed back as input</li>
+                                </ul>
                             </ol>
                         </Section>
-
-                        <Section title="8. Key Specifications">
-                            <div className="grid grid-cols-2 gap-2 text-[10px]">
-                                <div className="bg-slate-800/50 p-1.5 rounded">CNN Params: ~4.5M</div>
-                                <div className="bg-slate-800/50 p-1.5 rounded">HMM Models: 344</div>
-                                <div className="bg-slate-800/50 p-1.5 rounded">Model Size: ~690 KB</div>
-                                <div className="bg-slate-800/50 p-1.5 rounded">Max Iter: 10</div>
-                            </div>
-                        </Section>
-
-                        <Section title="9. Advantages">
-                            <ul className="space-y-0.5 text-slate-400 text-xs">
-                                <li className="flex items-center gap-1"><span className="text-green-400">✓</span> Supervised CNN features</li>
-                                <li className="flex items-center gap-1"><span className="text-green-400">✓</span> Efficient diagonal covariance</li>
-                                <li className="flex items-center gap-1"><span className="text-green-400">✓</span> 6x augmentation = generalization</li>
-                                <li className="flex items-center gap-1"><span className="text-green-400">✓</span> Probabilistic confidence scores</li>
-                            </ul>
-                        </Section>
                     </div>
                 </div>
             </div>
         ),
     },
-    {
-        title: "HMM Model Results",
-        content: (
-            <div className="space-y-8">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    {/* Metrics Card */}
-                    <div className="p-6 bg-slate-900/50 rounded-2xl border border-slate-800">
-                        <h3 className="text-xl font-semibold mb-6 text-violet-400">Performance Metrics</h3>
-                        <div className="space-y-6">
-                            <div>
-                                <div className="flex justify-between mb-2">
-                                    <span className="text-slate-400">Word Error Rate (WER)</span>
-                                    <span className="text-white font-mono">70.7%</span>
-                                </div>
-                                <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
-                                    <div className="h-full bg-violet-500 w-[70.7%]" />
-                                </div>
-                            </div>
-                            <div>
-                                <div className="flex justify-between mb-2">
-                                    <span className="text-slate-400">Sentence Accuracy</span>
-                                    <span className="text-white font-mono">22.2%</span>
-                                </div>
-                                <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
-                                    <div className="h-full bg-emerald-500 w-[22.2%]" />
-                                </div>
-                            </div>
-                            <div>
-                                <div className="flex justify-between mb-2">
-                                    <span className="text-slate-400">Word-Level Accuracy</span>
-                                    <span className="text-white font-mono">29.3%</span>
-                                </div>
-                                <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
-                                    <div className="h-full bg-cyan-500 w-[29.3%]" />
-                                </div>
-                            </div>
-                        </div>
-                    </div>
 
-                    {/* Key Findings */}
-                    <div className="p-6 bg-slate-900/50 rounded-2xl border border-slate-800">
-                        <h3 className="text-xl font-semibold mb-4 text-emerald-400">Key Findings</h3>
-                        <div className="grid grid-cols-1 gap-4 text-sm text-slate-400">
-                            <div className="flex items-start gap-3">
-                                <div className="w-2 h-2 mt-2 rounded-full bg-violet-500" />
-                                <p>Probabilistic HMM framework provides interpretable confidence scores for predictions.</p>
-                            </div>
-                            <div className="flex items-start gap-3">
-                                <div className="w-2 h-2 mt-2 rounded-full bg-emerald-500" />
-                                <p>Supervised CNN encoder successfully extracts discriminative features from raw EEG signals.</p>
-                            </div>
-                            <div className="flex items-start gap-3">
-                                <div className="w-2 h-2 mt-2 rounded-full bg-cyan-500" />
-                                <p>6x data augmentation significantly improves model generalization across subjects.</p>
-                            </div>
-                            <div className="flex items-start gap-3">
-                                <div className="w-2 h-2 mt-2 rounded-full bg-yellow-500" />
-                                <p>Diagonal covariance assumption enables efficient training with limited computational resources.</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
 
-                {/* Model Characteristics */}
-                <div className="p-6 bg-slate-900/50 rounded-2xl border border-slate-800">
-                    <h3 className="text-xl font-semibold mb-4 text-cyan-400">Model Characteristics</h3>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-                        <div className="p-4 bg-slate-800/50 rounded-lg">
-                            <div className="text-2xl font-bold text-violet-400">344</div>
-                            <div className="text-xs text-slate-500 mt-1">HMM Models</div>
-                        </div>
-                        <div className="p-4 bg-slate-800/50 rounded-lg">
-                            <div className="text-2xl font-bold text-emerald-400">~690 KB</div>
-                            <div className="text-xs text-slate-500 mt-1">Model Size</div>
-                        </div>
-                        <div className="p-4 bg-slate-800/50 rounded-lg">
-                            <div className="text-2xl font-bold text-cyan-400">5</div>
-                            <div className="text-xs text-slate-500 mt-1">States/Sentence</div>
-                        </div>
-                        <div className="p-4 bg-slate-800/50 rounded-lg">
-                            <div className="text-2xl font-bold text-yellow-400">32</div>
-                            <div className="text-xs text-slate-500 mt-1">Feature Dims</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        ),
-    },
 
     {
         title: "Experimentation & Results",
