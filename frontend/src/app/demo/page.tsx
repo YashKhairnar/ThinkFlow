@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { FileText, CheckCircle, Loader2, RefreshCw, Zap, Eye, X, Home } from "lucide-react";
+import { FileText, CheckCircle, Loader2, RefreshCw, Zap, Eye, X, Activity, Home } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Waveform from "@/components/Waveform";
 import Link from "next/link";
@@ -38,6 +38,39 @@ const testCases = [
     }
 ];
 
+
+
+const lstmTestCases = [
+    {
+        id: 1,
+        name: "LSTM Test Case 1",
+        expectedOutput: "In 1964 she went to Reprise again, shifting the next year to Dot Records.",
+        shape: "[1, 105, 5500]",
+        file: 'processed_data/rawdata_5968.csv'
+    },
+    {
+        id: 2,
+        name: "LSTM Test Case 2",
+        expectedOutput: "He was reelected twice, but had a mixed voting record, often diverging from President Harry S. Truman and the rest of the Democratic Party.",
+        shape: "[1, 105, 5500]",
+        file: 'processed_data/rawdata_6252.csv'
+    },
+    {
+        id: 3,
+        name: "LSTM Test Case 3",
+        expectedOutput: "In 1964 she went to Reprise again, shifting the next year to Dot Records.",
+        shape: "[1, 105, 5500]",
+        file: 'processed_data/rawdata_6046.csv'
+    },
+    {
+        id: 4,
+        name: "LSTM Test Case 4",
+        expectedOutput: "However, the U.S. Navy accepted him in September of that year.",
+        shape: "[1, 105, 5500]",
+        file: 'processed_data/rawdata_6127.csv'
+    }
+];
+
 export default function DemoPage() {
     const [selectedCase, setSelectedCase] = useState<typeof testCases[0] | null>(null);
     const [isProcessing, setIsProcessing] = useState(false);
@@ -46,6 +79,14 @@ export default function DemoPage() {
     const [tensorData, setTensorData] = useState<string | null>(null);
     const [isViewingTensor, setIsViewingTensor] = useState(false);
     const [loadingTensor, setLoadingTensor] = useState(false);
+
+
+
+    // LSTM Model state
+    const [selectedLstmCase, setSelectedLstmCase] = useState<typeof lstmTestCases[0] | null>(null);
+    const [isLstmProcessing, setIsLstmProcessing] = useState(false);
+    const [lstmResult, setLstmResult] = useState<{ text: string, confidence: number, expected?: string } | null>(null);
+
 
     const processTestCase = async (testCase: typeof testCases[0]) => {
         setSelectedCase(testCase);
@@ -90,6 +131,9 @@ export default function DemoPage() {
         }
     };
 
+
+
+
     const viewTensor = async (e: React.MouseEvent, testCase: typeof testCases[0]) => {
         e.stopPropagation(); // Prevent triggering the card click
         setLoadingTensor(true);
@@ -126,6 +170,62 @@ export default function DemoPage() {
         setIsProcessing(false);
     };
 
+
+
+    const processLstmTestCase = async (testCase: typeof lstmTestCases[0]) => {
+        setSelectedLstmCase(testCase);
+        setIsLstmProcessing(true);
+        setLstmResult(null);
+
+        try {
+            // 1. Fetch the CSV data from the public folder
+            const response = await fetch(`/${testCase.file}`);
+            if (!response.ok) throw new Error("Failed to load tensor data");
+            const csvText = await response.text();
+
+            // 2. Parse CSV to array of numbers (handling 105 rows x 5500 cols)
+            const rows = csvText.trim().split('\n').map(row =>
+                row.split(',').map(val => parseFloat(val))
+            );
+
+            // 3. Send to backend LSTM inference API
+            const apiResponse = await fetch('http://127.0.0.1:5000/predict_lstm', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    filename: testCase.file
+                }),
+            });
+
+            if (!apiResponse.ok) throw new Error("LSTM Inference failed");
+
+            const data = await apiResponse.json();
+            setLstmResult({
+                text: data.generated_text,
+                confidence: data.confidence,
+                expected: data.expected_output
+            });
+
+        } catch (error) {
+            console.error("Error processing LSTM test case:", error);
+            setLstmResult({
+                text: "Error: Failed to process EEG signal. Please ensure the backend server is running.",
+                confidence: 0
+            });
+        } finally {
+            setIsLstmProcessing(false);
+        }
+    };
+
+    const resetLstm = () => {
+        setSelectedLstmCase(null);
+        setIsLstmProcessing(false);
+        setLstmResult(null);
+    };
+
+
     return (
         <div className="min-h-screen bg-black text-white p-6 flex flex-col">
             <header className="flex items-center justify-between max-w-6xl mx-auto w-full mb-12">
@@ -141,142 +241,292 @@ export default function DemoPage() {
                 </Link>
             </header>
 
-            <main className="flex-1 max-w-5xl mx-auto w-full flex flex-col gap-8 relative">
+            <main className="flex-1 max-w-7xl mx-auto w-full flex flex-col gap-8 relative">
 
                 <div className="text-center mb-8">
                     <h1 className="text-4xl font-bold mb-4">EEG Signal Decoder</h1>
                     <p className="text-slate-400">Select a test case to see the model decode EEG signals into text.</p>
                 </div>
 
-                {/* Test Cases Section */}
-                <AnimatePresence mode="wait">
-                    {!selectedCase ? (
-                        <motion.div
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -20 }}
-                            className="grid grid-cols-1 md:grid-cols-2 gap-4"
-                        >
-                            {testCases.map((testCase) => (
-                                <motion.div
-                                    key={testCase.id}
-                                    onClick={() => processTestCase(testCase)}
-                                    className="p-6 bg-slate-900/50 border border-slate-800 rounded-2xl hover:border-cyan-500/50 hover:bg-slate-900/80 transition-all text-left group relative cursor-pointer"
-                                    whileHover={{ scale: 1.02 }}
-                                    whileTap={{ scale: 0.98 }}
-                                >
-                                    <div className="flex items-start justify-between mb-4">
-                                        <div className="w-12 h-12 bg-cyan-500/10 rounded-xl flex items-center justify-center group-hover:bg-cyan-500/20 transition-colors">
-                                            <Zap className="w-6 h-6 text-cyan-400" />
-                                        </div>
-                                        <button
-                                            onClick={(e) => viewTensor(e, testCase)}
-                                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-cyan-500/20 hover:text-cyan-300 border border-slate-700 hover:border-cyan-500/50 transition-all text-xs font-mono text-slate-400 z-10"
-                                        >
-                                            <Eye className="w-3 h-3" />
-                                            View Tensor
-                                        </button>
-                                    </div>
-                                    <h3 className="text-lg font-semibold mb-2 group-hover:text-cyan-300 transition-colors">
-                                        {testCase.name}
-                                    </h3>
-                                    <div className="text-xs text-slate-500 font-mono bg-black/40 p-2 rounded border border-slate-800">
-                                        Expected: "{testCase.expectedOutput.substring(0, 50)}..."
-                                    </div>
-                                </motion.div>
-                            ))}
-                        </motion.div>
-                    ) : (
-                        <motion.div
-                            initial={{ opacity: 0, scale: 0.95 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            className="w-full"
-                        >
-                            <div className="bg-slate-900/50 border border-slate-800 rounded-3xl p-8">
-                                <div className="flex items-center justify-between mb-8">
-                                    <div className="flex items-center gap-4">
-                                        <div className="w-12 h-12 bg-cyan-500/20 rounded-xl flex items-center justify-center">
-                                            <FileText className="w-6 h-6 text-cyan-400" />
-                                        </div>
-                                        <div>
-                                            <h3 className="font-semibold text-lg">{selectedCase.name}</h3>
-                                            <p className="text-sm text-slate-500">Shape of Tensor: {selectedCase.shape}</p>
-                                        </div>
-                                    </div>
-                                    {!isProcessing && !result && (
-                                        <button
-                                            onClick={reset}
-                                            className="text-slate-500 hover:text-white transition-colors"
-                                        >
-                                            Change Test
-                                        </button>
-                                    )}
-                                </div>
+                {/* Side-by-side layout for both models */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    {/* Transformer Model Section */}
+                    <div className="flex flex-col">
+                        <div className="text-center mb-6">
+                            <h2 className="text-3xl font-bold mb-2 bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 to-blue-400">Transformer Model</h2>
+                            <p className="text-slate-400 text-sm">Advanced EEG-to-Text Translation</p>
+                        </div>
 
-                                <div className="mb-8 p-6 bg-black/40 rounded-2xl border border-slate-800/50">
-                                    <div className="flex items-center justify-between mb-4">
-                                        <span className="text-sm font-medium text-slate-400">Signal Activity</span>
-                                        {isProcessing && (
-                                            <span className="flex items-center gap-2 text-xs text-cyan-400">
-                                                <Loader2 className="w-3 h-3 animate-spin" />
-                                                Decoding...
-                                            </span>
+                        <AnimatePresence mode="wait">
+                            {!selectedCase ? (
+                                <motion.div
+                                    initial={{ opacity: 0, y: 20 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, y: -20 }}
+                                    className="grid grid-cols-1 md:grid-cols-2 gap-4"
+                                >
+                                    {testCases.map((testCase) => (
+                                        <motion.div
+                                            key={testCase.id}
+                                            onClick={() => processTestCase(testCase)}
+                                            className="p-6 bg-slate-900/50 border border-slate-800 rounded-2xl hover:border-cyan-500/50 hover:bg-slate-900/80 transition-all text-left group relative cursor-pointer"
+                                            whileHover={{ scale: 1.02 }}
+                                            whileTap={{ scale: 0.98 }}
+                                        >
+                                            <div className="flex items-start justify-between mb-4">
+                                                <div className="w-12 h-12 bg-cyan-500/10 rounded-xl flex items-center justify-center group-hover:bg-cyan-500/20 transition-colors">
+                                                    <Zap className="w-6 h-6 text-cyan-400" />
+                                                </div>
+                                                <button
+                                                    onClick={(e) => viewTensor(e, testCase)}
+                                                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-cyan-500/20 hover:text-cyan-300 border border-slate-700 hover:border-cyan-500/50 transition-all text-xs font-mono text-slate-400 z-10"
+                                                >
+                                                    <Eye className="w-3 h-3" />
+                                                    View Tensor
+                                                </button>
+                                            </div>
+                                            <h3 className="text-lg font-semibold mb-2 group-hover:text-cyan-300 transition-colors">
+                                                {testCase.name}
+                                            </h3>
+                                            <div className="text-xs text-slate-500 font-mono bg-black/40 p-2 rounded border border-slate-800">
+                                                Expected: "{testCase.expectedOutput.substring(0, 50)}..."
+                                            </div>
+                                        </motion.div>
+                                    ))}
+                                </motion.div>
+                            ) : (
+                                <motion.div
+                                    initial={{ opacity: 0, scale: 0.95 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    className="w-full"
+                                >
+                                    <div className="bg-slate-900/50 border border-slate-800 rounded-3xl p-8">
+                                        <div className="flex items-center justify-between mb-8">
+                                            <div className="flex items-center gap-4">
+                                                <div className="w-12 h-12 bg-cyan-500/20 rounded-xl flex items-center justify-center">
+                                                    <FileText className="w-6 h-6 text-cyan-400" />
+                                                </div>
+                                                <div>
+                                                    <h3 className="font-semibold text-lg">{selectedCase.name}</h3>
+                                                    <p className="text-sm text-slate-500">Shape of Tensor: {selectedCase.shape}</p>
+                                                </div>
+                                            </div>
+                                            {!isProcessing && !result && (
+                                                <button
+                                                    onClick={reset}
+                                                    className="text-slate-500 hover:text-white transition-colors"
+                                                >
+                                                    Change Test
+                                                </button>
+                                            )}
+                                        </div>
+
+                                        <div className="mb-8 p-6 bg-black/40 rounded-2xl border border-slate-800/50">
+                                            <div className="flex items-center justify-between mb-4">
+                                                <span className="text-sm font-medium text-slate-400">Signal Activity</span>
+                                                {isProcessing && (
+                                                    <span className="flex items-center gap-2 text-xs text-cyan-400">
+                                                        <Loader2 className="w-3 h-3 animate-spin" />
+                                                        Decoding...
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <Waveform isActive={isProcessing} />
+                                        </div>
+
+                                        {!result ? (
+                                            <button
+                                                onClick={() => processTestCase(selectedCase)}
+                                                disabled={isProcessing}
+                                                className="w-full py-4 bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl font-semibold transition-all flex items-center justify-center gap-2"
+                                            >
+                                                {isProcessing ? "Processing Signal..." : "Decode to Text"}
+                                            </button>
+                                        ) : (
+                                            <motion.div
+                                                initial={{ opacity: 0, y: 10 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                className="space-y-6"
+                                            >
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                    {/* Generated Output */}
+                                                    <div className="p-6 bg-cyan-500/10 border border-cyan-500/20 rounded-2xl">
+                                                        <div className="flex items-center gap-2 mb-4 text-cyan-400">
+                                                            <CheckCircle className="w-5 h-5" />
+                                                            <span className="font-medium">Generated Output</span>
+                                                        </div>
+                                                        <p className="text-base leading-relaxed text-cyan-50">
+                                                            "{result}"
+                                                        </p>
+                                                    </div>
+
+                                                    {/* Expected Output */}
+                                                    <div className="p-6 bg-violet-500/10 border border-violet-500/20 rounded-2xl">
+                                                        <div className="flex items-center gap-2 mb-4 text-violet-400">
+                                                            <FileText className="w-5 h-5" />
+                                                            <span className="font-medium">Expected Output</span>
+                                                        </div>
+                                                        <p className="text-base leading-relaxed text-violet-50">
+                                                            "{expectedOutput}"
+                                                        </p>
+                                                    </div>
+                                                </div>
+
+                                                <button
+                                                    onClick={reset}
+                                                    className="w-full py-4 bg-slate-800 hover:bg-slate-700 rounded-xl font-medium transition-all flex items-center justify-center gap-2"
+                                                >
+                                                    <RefreshCw className="w-4 h-4" />
+                                                    Try Another Test Case
+                                                </button>
+                                            </motion.div>
                                         )}
                                     </div>
-                                    <Waveform isActive={isProcessing} />
-                                </div>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+                    </div>
 
-                                {!result ? (
-                                    <button
-                                        onClick={() => processTestCase(selectedCase)}
-                                        disabled={isProcessing}
-                                        className="w-full py-4 bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl font-semibold transition-all flex items-center justify-center gap-2"
-                                    >
-                                        {isProcessing ? "Processing Signal..." : "Decode to Text"}
-                                    </button>
-                                ) : (
-                                    <motion.div
-                                        initial={{ opacity: 0, y: 10 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        className="space-y-6"
-                                    >
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                            {/* Generated Output */}
-                                            <div className="p-6 bg-cyan-500/10 border border-cyan-500/20 rounded-2xl">
-                                                <div className="flex items-center gap-2 mb-4 text-cyan-400">
-                                                    <CheckCircle className="w-5 h-5" />
-                                                    <span className="font-medium">Generated Output</span>
-                                                </div>
-                                                <p className="text-base leading-relaxed text-cyan-50">
-                                                    "{result}"
-                                                </p>
-                                            </div>
+                    {/* LSTM Model Section */}
+                    <div className="flex flex-col">
+                        <div className="text-center mb-6">
+                            <h2 className="text-3xl font-bold mb-2 bg-clip-text text-transparent bg-gradient-to-r from-orange-400 to-amber-400">LSTM Model</h2>
+                            <p className="text-slate-400 text-sm">Sequence-to-Sequence LSTM with Attention</p>
+                        </div>
 
-                                            {/* Expected Output */}
-                                            <div className="p-6 bg-violet-500/10 border border-violet-500/20 rounded-2xl">
-                                                <div className="flex items-center gap-2 mb-4 text-violet-400">
-                                                    <FileText className="w-5 h-5" />
-                                                    <span className="font-medium">Expected Output</span>
+                        <AnimatePresence mode="wait">
+                            {!selectedLstmCase ? (
+                                <motion.div
+                                    initial={{ opacity: 0, y: 20 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, y: -20 }}
+                                    className="grid grid-cols-1 md:grid-cols-2 gap-4"
+                                >
+                                    {lstmTestCases.map((testCase) => (
+                                        <motion.div
+                                            key={testCase.id}
+                                            onClick={() => processLstmTestCase(testCase)}
+                                            className="p-6 bg-slate-900/50 border border-slate-800 rounded-2xl hover:border-orange-500/50 hover:bg-slate-900/80 transition-all text-left group relative cursor-pointer"
+                                            whileHover={{ scale: 1.02 }}
+                                            whileTap={{ scale: 0.98 }}
+                                        >
+                                            <div className="flex items-start justify-between mb-4">
+                                                <div className="w-12 h-12 bg-orange-500/10 rounded-xl flex items-center justify-center group-hover:bg-orange-500/20 transition-colors">
+                                                    <Activity className="w-6 h-6 text-orange-400" />
                                                 </div>
-                                                <p className="text-base leading-relaxed text-violet-50">
-                                                    "{expectedOutput}"
-                                                </p>
+                                                <button
+                                                    onClick={(e) => viewTensor(e, testCase)}
+                                                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-orange-500/20 hover:text-orange-300 border border-slate-700 hover:border-orange-500/50 transition-all text-xs font-mono text-slate-400 z-10"
+                                                >
+                                                    <Eye className="w-3 h-3" />
+                                                    View Tensor
+                                                </button>
                                             </div>
+                                            <h3 className="text-lg font-semibold mb-2 group-hover:text-orange-300 transition-colors">
+                                                {testCase.name}
+                                            </h3>
+                                            <div className="text-xs text-slate-500 font-mono bg-black/40 p-2 rounded border border-slate-800">
+                                                Expected: "{testCase.expectedOutput.substring(0, 50)}..."
+                                            </div>
+                                        </motion.div>
+                                    ))}
+                                </motion.div>
+                            ) : (
+                                <motion.div
+                                    initial={{ opacity: 0, scale: 0.95 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    className="w-full"
+                                >
+                                    <div className="bg-slate-900/50 border border-slate-800 rounded-3xl p-8">
+                                        <div className="flex items-center justify-between mb-8">
+                                            <div className="flex items-center gap-4">
+                                                <div className="w-12 h-12 bg-orange-500/20 rounded-xl flex items-center justify-center">
+                                                    <FileText className="w-6 h-6 text-orange-400" />
+                                                </div>
+                                                <div>
+                                                    <h3 className="font-semibold text-lg">{selectedLstmCase.name}</h3>
+                                                    <p className="text-sm text-slate-500">Shape of Tensor: {selectedLstmCase.shape}</p>
+                                                </div>
+                                            </div>
+                                            {!isLstmProcessing && !lstmResult && (
+                                                <button
+                                                    onClick={resetLstm}
+                                                    className="text-slate-500 hover:text-white transition-colors"
+                                                >
+                                                    Change Test
+                                                </button>
+                                            )}
                                         </div>
 
-                                        <button
-                                            onClick={reset}
-                                            className="w-full py-4 bg-slate-800 hover:bg-slate-700 rounded-xl font-medium transition-all flex items-center justify-center gap-2"
-                                        >
-                                            <RefreshCw className="w-4 h-4" />
-                                            Try Another Test Case
-                                        </button>
-                                    </motion.div>
-                                )}
-                            </div>
-                        </motion.div>
-                    )}
-                </AnimatePresence>
+                                        <div className="mb-8 p-6 bg-black/40 rounded-2xl border border-slate-800/50">
+                                            <div className="flex items-center justify-between mb-4">
+                                                <span className="text-sm font-medium text-slate-400">Signal Activity</span>
+                                                {isLstmProcessing && (
+                                                    <span className="flex items-center gap-2 text-xs text-orange-400">
+                                                        <Loader2 className="w-3 h-3 animate-spin" />
+                                                        Decoding...
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <Waveform isActive={isLstmProcessing} color="orange" />
+                                        </div>
+
+                                        {!lstmResult ? (
+                                            <button
+                                                onClick={() => processLstmTestCase(selectedLstmCase)}
+                                                disabled={isLstmProcessing}
+                                                className="w-full py-4 bg-orange-600 hover:bg-orange-500 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl font-semibold transition-all flex items-center justify-center gap-2"
+                                            >
+                                                {isLstmProcessing ? "Processing Signal..." : "Decode to Text"}
+                                            </button>
+                                        ) : (
+                                            <motion.div
+                                                initial={{ opacity: 0, y: 10 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                className="space-y-6"
+                                            >
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                    {/* Generated Output */}
+                                                    <div className="p-6 bg-orange-500/10 border border-orange-500/20 rounded-2xl">
+                                                        <div className="flex items-center gap-2 mb-4 text-orange-400">
+                                                            <CheckCircle className="w-5 h-5" />
+                                                            <span className="font-medium">Generated Output</span>
+                                                        </div>
+                                                        <p className="text-base leading-relaxed text-orange-50">
+                                                            "{lstmResult.text}"
+                                                        </p>
+                                                        <div className="mt-4 text-sm text-orange-300">
+                                                            Confidence: {(lstmResult.confidence * 100).toFixed(1)}%
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Expected Output */}
+                                                    <div className="p-6 bg-violet-500/10 border border-violet-500/20 rounded-2xl">
+                                                        <div className="flex items-center gap-2 mb-4 text-violet-400">
+                                                            <FileText className="w-5 h-5" />
+                                                            <span className="font-medium">Expected Output</span>
+                                                        </div>
+                                                        <p className="text-base leading-relaxed text-violet-50">
+                                                            "{lstmResult.expected || selectedLstmCase.expectedOutput}"
+                                                        </p>
+                                                    </div>
+                                                </div>
+
+                                                <button
+                                                    onClick={resetLstm}
+                                                    className="w-full py-4 bg-slate-800 hover:bg-slate-700 rounded-xl font-medium transition-all flex items-center justify-center gap-2"
+                                                >
+                                                    <RefreshCw className="w-4 h-4" />
+                                                    Try Another Test Case
+                                                </button>
+                                            </motion.div>
+                                        )}
+                                    </div>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+                    </div>
+                </div>
 
                 {/* Tensor View Modal */}
                 <AnimatePresence>
